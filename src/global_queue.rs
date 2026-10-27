@@ -2,6 +2,7 @@ use crate::receive_msg::ReceiveMsg;
 use crate::tcp::tcp_connect::tcp_connect;
 use chrono::Utc;
 use std::collections::VecDeque;
+use uuid::Uuid;
 
 pub struct GlobalQueue<T> {
     queue: VecDeque<T>,
@@ -9,7 +10,7 @@ pub struct GlobalQueue<T> {
 }
 
 impl GlobalQueue<ReceiveMsg> {
-    pub fn deal_task(&self) {
+    pub fn deal_task(&self, uuid: &str) {
         let mut index = 0;
         for x in &self.queue {
             index += 1;
@@ -28,7 +29,7 @@ impl GlobalQueue<ReceiveMsg> {
                         None,
                         x.time_out,
                     );
-                    println!("{}", index);
+                    crate::msg_map::store(uuid, index as u32, msg);
                 }
                 Err(reason) => {
                     let msg1 = ReceiveMsg::new(
@@ -43,7 +44,7 @@ impl GlobalQueue<ReceiveMsg> {
                         Some(reason.split_once("-").unwrap().1.to_string()),
                         x.time_out,
                     );
-                    println!("{}", index);
+                    crate::msg_map::store(uuid, index as u32, msg1);
                 }
             }
         }

@@ -6,5 +6,4 @@ pub fn submit(msg: Vec<ReceiveMsg>){
     for x in msg {
         queue.push_back(x);
     }
-    queue.deal_task();
 }

@@ -1,3 +1,4 @@
+#[derive(Clone, Debug)]
 pub struct ReceiveMsg{
     pub(crate) index: i32,
     pub(crate) host: Vec<String>,
