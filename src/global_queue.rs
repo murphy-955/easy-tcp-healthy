@@ -1,6 +1,6 @@
-use crate::recive_msg::ReceiveMsg;
-use crate::submit_msg::SubmitMsg;
-use crate::tcp::tcp_connect;
+use crate::receive_msg::ReceiveMsg;
+use crate::tcp::tcp_connect::tcp_connect;
+use chrono::Utc;
 use std::collections::VecDeque;
 
 pub struct GlobalQueue<T> {
@@ -8,23 +8,43 @@ pub struct GlobalQueue<T> {
     max_size: usize,
 }
 
-impl<T: SubmitMsg> GlobalQueue<T> {
-    pub(crate) fn deal_task(&self) {
+impl GlobalQueue<ReceiveMsg> {
+    pub fn deal_task(&self) {
         let mut index = 0;
         for x in &self.queue {
             index += 1;
-            let started_at = std::time::Instant::now();
+            let started_at = Utc::now();
             match tcp_connect(&x) {
-                Ok(addr) => ReceiveMsg {
-                    index: index,
-                    host: &x.host,
-                    port: &x.port,
-                    status: String::new("OK"),
-                    started_at: started_at,
-                    finished_at: std::time::Instant::now(),
-                    error: None,
-                },
-                Err(reason) => println!("失败原因: {}", reason),
+                Ok(addr) => {
+                    let msg = ReceiveMsg::new(
+                        index,
+                        x.host.clone(),
+                        x.port,
+                        String::from("OK"),
+                        started_at,
+                        Utc::now(),
+                        Some(Utc::now() - started_at),
+                        Vec::from([addr]),
+                        None,
+                        x.time_out,
+                    );
+                    println!("{}", index);
+                }
+                Err(reason) => {
+                    let msg1 = ReceiveMsg::new(
+                        index,
+                        x.host.clone(),
+                        x.port,
+                        String::from("ERR"),
+                        started_at,
+                        Utc::now(),
+                        Some(Utc::now() - started_at),
+                        Vec::from([reason.split_once("-").unwrap().0.to_string()]),
+                        Some(reason.split_once("-").unwrap().1.to_string()),
+                        x.time_out,
+                    );
+                    println!("{}", index);
+                }
             }
         }
     }

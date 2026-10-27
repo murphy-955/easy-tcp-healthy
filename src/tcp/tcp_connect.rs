@@ -1,8 +1,9 @@
 use std::net::{TcpStream, ToSocketAddrs};
 use std::time::Duration;
+use crate::receive_msg::ReceiveMsg;
 
-pub fn tcp_connect(x: &X) -> Result<String, String> {
-    let addr = format!("{}:{}", x.host, x.port);
+pub fn tcp_connect(x: &ReceiveMsg) -> Result<String, String> {
+    let addr = format!("{:?}:{:?}", x.host, x.port);
     let timeout = Duration::from_millis(x.time_out as u64);
 
     // 1. 域名/主机名 → SocketAddr（可能解析出多个 IP）
@@ -21,14 +22,9 @@ pub fn tcp_connect(x: &X) -> Result<String, String> {
                 let _ = stream.set_write_timeout(Some(timeout));
                 return Ok(addr);
             }
-            Err(e) => last_err = format!("{}", e),
+            Err(e) => last_err = format!("{}-{}", a, e),
         }
     }
 
-    Err(format!(
-        "连接 [{}] 失败（{} 个地址都试过）: {}",
-        addr,
-        addrs.len(),
-        last_err
-    ))
+    Err(format!("{}-{}-{}", addr, last_err, addrs.len()))
 }

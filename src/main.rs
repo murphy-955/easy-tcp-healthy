@@ -1,7 +1,7 @@
-mod submit_msg;
 mod tasks;
 mod global_queue;
-mod recive_msg;
+mod receive_msg;
+mod tcp;
 
 fn main() {
     println!("Hello, world!");
