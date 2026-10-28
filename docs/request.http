@@ -1,0 +1,106 @@
+@baseUrl = http://127.0.0.1:8080
+
+### 1. 健康检查：预期 200，返回 {"status":"ok"}
+GET {{baseUrl}}/health
+
+### 2. 提交单目标探测任务：预期 202，并自动保存 task_id
+POST {{baseUrl}}/api/v1/probe-tasks
+Content-Type: application/json
+
+{
+  "timeout_ms": 3000,
+  "targets": [
+    {
+      "host": "127.0.0.1",
+      "port": 8080
+    }
+  ]
+}
+
+> {%
+    client.global.set("task_id", response.body.task_id);
+%}
+
+### 3. 查询上一个任务：可重复执行，预期最终状态为 completed
+GET {{baseUrl}}/api/v1/probe-tasks/{{task_id}}
+
+### 4. 提交批量探测任务：预期 202，各目标独立执行
+POST {{baseUrl}}/api/v1/probe-tasks
+Content-Type: application/json
+
+{
+  "timeout_ms": 1000,
+  "targets": [
+    {
+      "host": "127.0.0.1",
+      "port": 8080
+    },
+    {
+      "host": "127.0.0.1",
+      "port": 9
+    },
+    {
+      "host": "localhost",
+      "port": 8080
+    }
+  ]
+}
+
+> {%
+    client.global.set("batch_task_id", response.body.task_id);
+%}
+
+### 5. 查询批量任务：预期 completed 等于 total，成功和失败目标均计入
+GET {{baseUrl}}/api/v1/probe-tasks/{{batch_task_id}}
+
+### 6. 空目标列表：预期 400 INVALID_REQUEST
+POST {{baseUrl}}/api/v1/probe-tasks
+Content-Type: application/json
+
+{
+  "targets": []
+}
+
+### 7. 非法端口：预期 400 INVALID_REQUEST
+POST {{baseUrl}}/api/v1/probe-tasks
+Content-Type: application/json
+
+{
+  "targets": [
+    {
+      "host": "127.0.0.1",
+      "port": 0
+    }
+  ]
+}
+
+### 8. 非法超时时间：预期 400 INVALID_REQUEST
+POST {{baseUrl}}/api/v1/probe-tasks
+Content-Type: application/json
+
+{
+  "timeout_ms": 50,
+  "targets": [
+    {
+      "host": "127.0.0.1",
+      "port": 8080
+    }
+  ]
+}
+
+### 9. 未知字段：预期 400 INVALID_REQUEST
+POST {{baseUrl}}/api/v1/probe-tasks
+Content-Type: application/json
+
+{
+  "targets": [
+    {
+      "host": "127.0.0.1",
+      "port": 8080
+    }
+  ],
+  "unknown_field": true
+}
+
+### 10. 查询不存在的任务：预期 404 TASK_NOT_FOUND
+GET {{baseUrl}}/api/v1/probe-tasks/00000000-0000-0000-0000-000000000000
