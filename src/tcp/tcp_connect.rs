@@ -1,30 +1,46 @@
-use crate::receive_msg::ReceiveMsg;
-use std::net::{TcpStream, ToSocketAddrs};
+use crate::receive_msg::{ProbeError, ReceiveMsg};
+use std::io::ErrorKind;
+use std::net::{SocketAddr, TcpStream, ToSocketAddrs};
 use std::time::Duration;
 
-pub fn tcp_connect(x: &ReceiveMsg) -> Result<String, String> {
-    let addr = format!("{:?}:{:?}", x.host, x.port);
-    let timeout = Duration::from_millis(x.time_out as u64);
-
-    // 1. 域名/主机名 → SocketAddr（可能解析出多个 IP）
-    let addrs: Vec<_> = addr
+pub fn tcp_connect(msg: &ReceiveMsg) -> Result<String, ProbeError> {
+    let timeout = Duration::from_millis(u64::from(msg.time_out));
+    let addrs: Vec<SocketAddr> = (msg.host.as_str(), msg.port)
         .to_socket_addrs()
-        .map_err(|e| format!("地址解析失败 [{}]: {}", addr, e))?
+        .map_err(|error| {
+            ProbeError::new(
+                "DNS_RESOLUTION_FAILED",
+                format!("failed to resolve host {}: {error}", msg.host),
+            )
+        })?
         .collect();
 
-    // 2. 逐个 IP 尝试带超时连接，记录最后一次错误
-    let mut last_err = String::new();
-    for a in &addrs {
-        match TcpStream::connect_timeout(a, timeout) {
-            Ok(stream) => {
-                // 连接成功后可以顺便设置读写超时（可选）
-                let _ = stream.set_read_timeout(Some(timeout));
-                let _ = stream.set_write_timeout(Some(timeout));
-                return Ok(addr);
-            }
-            Err(e) => last_err = format!("{}-{}", a, e),
+    if addrs.is_empty() {
+        return Err(ProbeError::new(
+            "DNS_RESOLUTION_FAILED",
+            format!("host {} resolved to no addresses", msg.host),
+        ));
+    }
+
+    let mut last_error = None;
+    for addr in addrs {
+        match TcpStream::connect_timeout(&addr, timeout) {
+            Ok(_) => return Ok(addr.ip().to_string()),
+            Err(error) => last_error = Some(error),
         }
     }
 
-    Err(format!("{}-{}-{}", addr, last_err, addrs.len()))
+    let error = last_error.expect("at least one address was attempted");
+    let code = match error.kind() {
+        ErrorKind::TimedOut => "CONNECTION_TIMEOUT",
+        ErrorKind::ConnectionRefused => "CONNECTION_REFUSED",
+        _ => "CONNECTION_FAILED",
+    };
+    let message = match code {
+        "CONNECTION_TIMEOUT" => String::from("TCP connection timed out"),
+        "CONNECTION_REFUSED" => String::from("TCP connection was refused"),
+        _ => format!("TCP connection failed: {error}"),
+    };
+
+    Err(ProbeError::new(code, message))
 }

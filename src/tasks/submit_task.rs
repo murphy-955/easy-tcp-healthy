@@ -9,19 +9,14 @@ pub fn submit(
     uuid: String,
     messages: Vec<ReceiveMsg>,
 ) -> Result<(), TrySendError<Job>> {
-    // 请求进入后，先在 HashMap 中记录所有目标为待处理状态。
-    for (offset, msg) in messages.iter().enumerate() {
-        let index = (offset + 1) as u32;
-        let mut pending_msg = msg.clone();
-        pending_msg.status = String::from("PENDING");
-        msg_map::store(&uuid, index, pending_msg);
-    }
+    // 请求进入后，先在 HashMap 中记录任务和所有待处理目标。
+    msg_map::create_task(&uuid, &messages);
 
     let job = Job { uuid, messages };
     match tx.try_send(job) {
         Ok(()) => Ok(()),
         Err(error) => {
-            // 入队失败的任务不会被执行，清理已经写入的待处理记录。
+            // 入队失败的任务不会被执行，清理已经写入的记录。
             let failed_job = match &error {
                 TrySendError::Full(job) | TrySendError::Disconnected(job) => job,
             };
@@ -34,23 +29,10 @@ pub fn submit(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::Utc;
     use std::sync::mpsc;
 
     fn message() -> ReceiveMsg {
-        let now = Utc::now();
-        ReceiveMsg {
-            index: 0,
-            host: vec![String::from("127.0.0.1")],
-            port: 8080,
-            status: String::new(),
-            started_at: now,
-            finished_at: now,
-            duration: None,
-            resolved_ip: Vec::new(),
-            error: None,
-            time_out: 3000,
-        }
+        ReceiveMsg::pending(0, String::from("127.0.0.1"), 8080, 3000)
     }
 
     #[test]
@@ -60,7 +42,8 @@ mod tests {
 
         submit(&tx, uuid.clone(), vec![message()]).unwrap();
 
-        assert_eq!(msg_map::get(&uuid, 1).unwrap().status, "PENDING");
+        let task = msg_map::get_task(&uuid).unwrap();
+        assert_eq!(task.targets[0].status, "pending");
         assert_eq!(rx.try_recv().unwrap().uuid, uuid);
         msg_map::remove_task(&uuid);
     }
@@ -75,8 +58,8 @@ mod tests {
         let error = submit(&tx, second_uuid.clone(), vec![message()]).unwrap_err();
 
         assert!(matches!(error, TrySendError::Full(_)));
-        assert!(msg_map::get(&first_uuid, 1).is_some());
-        assert!(msg_map::get(&second_uuid, 1).is_none());
+        assert!(msg_map::get_task(&first_uuid).is_some());
+        assert!(msg_map::get_task(&second_uuid).is_none());
         msg_map::remove_task(&first_uuid);
     }
 }
