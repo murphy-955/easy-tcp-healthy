@@ -1,9 +1,13 @@
-use crate::global_queue::GlobalQueue;
-use crate::receive_msg::ReceiveMsg;
+use std::sync::mpsc::{self, Sender};
 
-pub fn submit(msg: Vec<ReceiveMsg>){
-    let mut queue = GlobalQueue::new(msg.len());
-    for x in msg {
-        queue.push_back(x);
-    }
+use crate::receive_msg::ReceiveMsg;
+use crate::tasks::job::Job;
+
+pub fn submit(
+    tx: &Sender<Job>,
+    uuid: String,
+    messages: Vec<ReceiveMsg>,
+) -> Result<(), mpsc::SendError<Job>> {
+    let job = Job { uuid, messages };
+    tx.send(job)
 }

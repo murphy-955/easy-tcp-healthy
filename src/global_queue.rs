@@ -15,38 +15,9 @@ impl GlobalQueue<ReceiveMsg> {
         for x in &self.queue {
             index += 1;
             let started_at = Utc::now();
-            match tcp_connect(&x) {
-                Ok(addr) => {
-                    let msg = ReceiveMsg::new(
-                        index,
-                        x.host.clone(),
-                        x.port,
-                        String::from("OK"),
-                        started_at,
-                        Utc::now(),
-                        Some(Utc::now() - started_at),
-                        Vec::from([addr]),
-                        None,
-                        x.time_out,
-                    );
-                    crate::msg_map::store(uuid, index as u32, msg);
-                }
-                Err(reason) => {
-                    let msg1 = ReceiveMsg::new(
-                        index,
-                        x.host.clone(),
-                        x.port,
-                        String::from("ERR"),
-                        started_at,
-                        Utc::now(),
-                        Some(Utc::now() - started_at),
-                        Vec::from([reason.split_once("-").unwrap().0.to_string()]),
-                        Some(reason.split_once("-").unwrap().1.to_string()),
-                        x.time_out,
-                    );
-                    crate::msg_map::store(uuid, index as u32, msg1);
-                }
-            }
+            let result = tcp_connect(x);
+            let msg = ReceiveMsg::new(index, x.clone(), started_at, result);
+            crate::msg_map::store(uuid, index, msg);
         }
     }
 }

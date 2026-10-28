@@ -1,2 +1,3 @@
 mod submit_task;
-mod deal_task;
+pub mod deal_task;
+pub mod job;
