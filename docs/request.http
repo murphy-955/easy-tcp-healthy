@@ -11,8 +11,8 @@ Content-Type: application/json
   "timeout_ms": 3000,
   "targets": [
     {
-      "host": "127.0.0.1",
-      "port": 8080
+      "host": "www.izuswimassociation3.top",
+      "port": 443
     }
   ]
 }
