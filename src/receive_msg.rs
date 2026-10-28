@@ -1,5 +1,5 @@
 #[derive(Clone, Debug)]
-pub struct ReceiveMsg{
+pub struct ReceiveMsg {
     pub(crate) index: u32,
     pub(crate) host: Vec<String>,
     pub(crate) port: u16,
@@ -7,7 +7,7 @@ pub struct ReceiveMsg{
     pub(crate) started_at: chrono::DateTime<chrono::Utc>,
     pub(crate) finished_at: chrono::DateTime<chrono::Utc>,
     pub(crate) duration: Option<chrono::Duration>,
-    pub(crate) resolved_ip : Vec<String>,
+    pub(crate) resolved_ip: Vec<String>,
     pub(crate) error: Option<String>,
     pub(crate) time_out: u32,
 }

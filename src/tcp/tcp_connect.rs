@@ -1,6 +1,6 @@
+use crate::receive_msg::ReceiveMsg;
 use std::net::{TcpStream, ToSocketAddrs};
 use std::time::Duration;
-use crate::receive_msg::ReceiveMsg;
 
 pub fn tcp_connect(x: &ReceiveMsg) -> Result<String, String> {
     let addr = format!("{:?}:{:?}", x.host, x.port);
